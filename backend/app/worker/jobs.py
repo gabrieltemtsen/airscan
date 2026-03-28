@@ -8,6 +8,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.case import Case, Finding, Transcript
 from app.models.policy import PolicyClause
@@ -97,6 +98,10 @@ def _load_clauses(db: Session, pack_ids: list[str]) -> list[PolicyClause]:
 
 
 def _deduct_usage(user: User, seconds: int) -> None:
+    # Beta mode or beta plan: unlimited, no deduction needed.
+    if settings.beta_mode or user.plan in ("beta", "starter", "pro", "enterprise"):
+        return
+
     # Free trial: 3 analyses, max 600 seconds each.
     if user.free_analyses_used < 3:
         user.free_analyses_used += 1
@@ -107,9 +112,6 @@ def _deduct_usage(user: User, seconds: int) -> None:
         user.credits_seconds -= seconds
         return
 
-    # Starter/pro subscription: simplistic allowance tracking via credits_seconds not used here.
-    # For now, allow processing and do not block. In production you'd track monthly limits.
-
 
 def analyze_case(case_id: str) -> None:
     db = SessionLocal()
@@ -117,12 +119,14 @@ def analyze_case(case_id: str) -> None:
         case = db.query(Case).filter(Case.id == case_id).one()
         user = db.query(User).filter(User.id == case.user_id).one()
 
-        # Pre-check free trial limits
-        if user.free_analyses_used >= 3 and user.plan == "free":
-            case.status = "failed"
-            case.error_message = "Free trial used. Top up credits or subscribe."
-            db.commit()
-            return
+        # Pre-check limits (skipped entirely in beta mode or for paid/beta plans)
+        is_unlimited = settings.beta_mode or user.plan in ("beta", "starter", "pro", "enterprise")
+        if not is_unlimited:
+            if user.free_analyses_used >= 3 and user.plan == "free":
+                case.status = "failed"
+                case.error_message = "Free trial used. Top up credits or subscribe."
+                db.commit()
+                return
 
         case.status = "processing"
         case.error_message = None
@@ -135,8 +139,8 @@ def analyze_case(case_id: str) -> None:
             duration = _ffprobe_duration(in_path)
             case.file_duration_seconds = duration
 
-            # Enforce free trial duration cap
-            if user.free_analyses_used < 3 and duration and duration > 600:
+            # Enforce free trial duration cap (skipped for unlimited users)
+            if not is_unlimited and user.free_analyses_used < 3 and duration and duration > 600:
                 case.status = "failed"
                 case.error_message = "Free trial analyses are limited to 10 minutes."
                 db.commit()

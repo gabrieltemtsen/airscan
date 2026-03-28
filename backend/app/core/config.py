@@ -28,8 +28,21 @@ class Settings(BaseSettings):
     aws_region: str = "auto"
 
     # Paystack
-    paystack_secret_key: str
+    paystack_secret_key: str = ""
     paystack_public_key: str | None = None
+
+    # Beta / testing mode
+    # Set BETA_MODE=true to bypass ALL billing/usage gates.
+    # Testers get unlimited analyses with no payment required.
+    beta_mode: bool = False
+
+    # Comma-separated list of emails to auto-grant beta plan on first login.
+    # e.g. BETA_EMAILS=tester1@example.com,tester2@example.com
+    beta_emails: str = ""
+
+    @property
+    def beta_email_list(self) -> list[str]:
+        return [e.strip().lower() for e in self.beta_emails.split(",") if e.strip()]
 
 
 settings = Settings()  # type: ignore

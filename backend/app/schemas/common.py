@@ -11,6 +11,7 @@ class UserMeOut(BaseModel):
     plan: str
     credits_seconds: int
     free_analyses_used: int
+    beta_mode: bool = False
 
 
 class UsageOut(BaseModel):

@@ -15,9 +15,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type Me = {
   email: string;
-  plan: "free" | "express" | "starter" | "pro" | "enterprise";
+  plan: "free" | "express" | "beta" | "starter" | "pro" | "enterprise";
   credits_seconds: number;
   free_analyses_used: number;
+  beta_mode: boolean;
 };
 
 type Invoice = {
@@ -107,6 +108,22 @@ export function BillingClient() {
         </Card>
       ) : null}
 
+      {/* Beta mode banner */}
+      {me?.beta_mode || me?.plan === "beta" ? (
+        <Card className="border-gold bg-gold/10">
+          <CardContent className="flex items-center gap-3 p-4">
+            <span className="text-2xl">🧪</span>
+            <div>
+              <p className="font-semibold text-navy">Beta Access — Unlimited</p>
+              <p className="text-sm text-muted-foreground">
+                You&apos;re on beta access. All analyses are free with no limits. Payment is disabled.
+              </p>
+            </div>
+            <Badge variant="gold" className="ml-auto">BETA</Badge>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {me ? (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -116,16 +133,28 @@ export function BillingClient() {
             <CardContent className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Plan</span>
-                <Badge variant="gold">{me.plan.toUpperCase()}</Badge>
+                <Badge variant={me.plan === "beta" ? "gold" : "default"}>
+                  {me.plan === "beta" ? "🧪 BETA" : me.plan.toUpperCase()}
+                </Badge>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Free trial remaining</span>
-                <span className="font-medium text-navy">{remainingTrial}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Express credits</span>
-                <span className="font-medium text-navy">{formatSeconds(me.credits_seconds)}</span>
-              </div>
+              {me.plan !== "beta" && !me.beta_mode && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Free trial remaining</span>
+                    <span className="font-medium text-navy">{remainingTrial}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Express credits</span>
+                    <span className="font-medium text-navy">{formatSeconds(me.credits_seconds)}</span>
+                  </div>
+                </>
+              )}
+              {(me.plan === "beta" || me.beta_mode) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Analyses</span>
+                  <span className="font-medium text-green-600">Unlimited ✓</span>
+                </div>
+              )}
               <div className="pt-3 text-xs text-muted-foreground">
                 After free trial, top up express credits or subscribe to Starter/Pro.
               </div>
