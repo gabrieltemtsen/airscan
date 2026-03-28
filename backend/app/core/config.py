@@ -18,8 +18,11 @@ class Settings(BaseSettings):
 
     # AI
     openai_api_key: str = ""
+    # Used for both Whisper transcription + (optional) policy analysis fallback
+    openai_analysis_model: str = "gpt-4o-mini"
+
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"  # fallback model widely available
+    gemini_model: str = "gemini-1.5-flash"  # configurable; if unavailable we fallback to OpenAI
 
     # Storage (S3-compatible, e.g., Cloudflare R2)
     aws_access_key_id: str = ""

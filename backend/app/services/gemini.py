@@ -6,6 +6,7 @@ from typing import Any
 import google.generativeai as genai
 
 from app.core.config import settings
+from app.services.openai_analysis import analyze_segment_openai
 
 
 genai.configure(api_key=settings.gemini_api_key)
@@ -33,8 +34,12 @@ def analyze_segment(clauses_json: list[dict[str, Any]], segment_text: str) -> li
         "Return [] if no violations found.\n"
     )
 
-    resp = model.generate_content(prompt)
-    text = (resp.text or "").strip()
+    try:
+        resp = model.generate_content(prompt)
+        text = (resp.text or "").strip()
+    except Exception:
+        # Gemini model not available for this key — fallback to OpenAI
+        return analyze_segment_openai(clauses_json, segment_text)
 
     # Strip code fences if present
     if text.startswith("```"):
