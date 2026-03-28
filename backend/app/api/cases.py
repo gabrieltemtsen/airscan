@@ -19,6 +19,7 @@ from app.schemas.common import (
     TranscriptOut,
 )
 from app.services.export import build_pdf_report
+from app.services.storage import parse_s3_style_url, presigned_get_url
 from app.worker.jobs import analyze_case
 from app.worker.queue import get_queue
 
@@ -78,6 +79,18 @@ def create_case(payload: CaseCreateIn, user=Depends(get_current_user)):
     except Exception as e:
         logging.exception("Case creation failed")
         raise HTTPException(status_code=500, detail=f"Case creation failed: {str(e)}")
+
+
+@router.get("/cases/{case_id}/media-url")
+def media_url(case_id: str, user=Depends(get_current_user)):
+    """Return a short-lived signed URL for streaming the case media (audio preferred)."""
+    with db_session() as db:
+        c = db.query(Case).filter(Case.id == case_id, Case.user_id == user.id).one_or_none()
+        if not c:
+            raise HTTPException(status_code=404, detail="Case not found")
+        target_url = c.audio_url or c.file_url
+        bucket, key = parse_s3_style_url(target_url)
+        return {"url": presigned_get_url(bucket, key, expires=3600)}
 
 
 @router.get("/cases", response_model=PaginatedCases)

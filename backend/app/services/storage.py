@@ -37,6 +37,15 @@ def presigned_put_url(key: str, content_type: str, expires: int = 3600) -> str:
     )
 
 
+def presigned_get_url(bucket: str, key: str, expires: int = 3600) -> str:
+    client = s3_client()
+    return client.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={"Bucket": bucket, "Key": key},
+        ExpiresIn=expires,
+    )
+
+
 def object_url(key: str) -> str:
     # For S3-compatible endpoints, build a public URL. Many R2 setups are public via a custom domain.
     # If the endpoint is not public, you can still use signed GET URLs on demand.

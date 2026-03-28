@@ -73,6 +73,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
 
   const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [severity, setSeverity] = useState<string>("all");
@@ -90,6 +91,17 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
     if (!dRes.ok) throw new Error(await dRes.text());
     const d = (await dRes.json()) as CaseDetail;
     setDetail(d);
+
+    // Get signed media URL for streaming
+    try {
+      const mRes = await fetch(`${API_URL}/api/cases/${caseId}/media-url`, { headers, cache: "no-store" });
+      if (mRes.ok) {
+        const m = await mRes.json();
+        setMediaUrl(m.url);
+      }
+    } catch {
+      // ignore
+    }
 
     if (d.status === "complete") {
       const [tRes, fRes] = await Promise.all([
@@ -222,15 +234,19 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
             <CardTitle className="text-navy">Media</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {detail?.audio_url || detail?.file_url ? (
+            {mediaUrl ? (
               <video
                 ref={(el) => {
                   mediaRef.current = el;
                 }}
                 className="w-full rounded-xl border border-border/70 bg-black"
                 controls
-                src={(detail.audio_url || detail.file_url) as string}
+                src={mediaUrl}
               />
+            ) : detail?.audio_url || detail?.file_url ? (
+              <div className="rounded-xl border border-border/70 bg-white/50 p-4 text-sm text-muted-foreground">
+                Preparing a secure streaming URL...
+              </div>
             ) : (
               <div className="rounded-xl border border-border/70 bg-white/50 p-4 text-sm text-muted-foreground">
                 Media will appear once processing starts.
