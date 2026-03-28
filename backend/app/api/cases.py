@@ -27,46 +27,57 @@ router = APIRouter(tags=["cases"])
 
 @router.post("/cases", response_model=CaseOut)
 def create_case(payload: CaseCreateIn, user=Depends(get_current_user)):
+    import logging
+    import threading
     from app.core.config import settings
     from app.models.policy import PolicyPack
 
-    with db_session() as db:
-        # free plan cutoff (skip in beta mode)
-        is_unlimited = settings.beta_mode or user.plan in ("beta", "starter", "pro", "enterprise")
-        if not is_unlimited and user.plan == "free" and user.free_analyses_used >= 3:
-            raise HTTPException(status_code=402, detail="Free trial used. Top up credits or subscribe.")
+    try:
+        with db_session() as db:
+            # free plan cutoff (skip in beta mode)
+            is_unlimited = settings.beta_mode or user.plan in ("beta", "starter", "pro", "enterprise")
+            if not is_unlimited and user.plan == "free" and user.free_analyses_used >= 3:
+                raise HTTPException(status_code=402, detail="Free trial used. Top up credits or subscribe.")
 
-        # If no policy packs selected, auto-use all default packs
-        pack_ids = payload.policy_pack_ids
-        if not pack_ids:
-            defaults = db.query(PolicyPack).filter(PolicyPack.is_default == True).all()  # noqa: E712
-            pack_ids = [str(p.id) for p in defaults]
+            # If no policy packs selected, auto-use all default packs
+            pack_ids = payload.policy_pack_ids
+            if not pack_ids:
+                defaults = db.query(PolicyPack).filter(PolicyPack.is_default == True).all()  # noqa: E712
+                pack_ids = [str(p.id) for p in defaults]
 
-        c = Case(
-            user_id=user.id,
-            station_name=payload.station_name,
-            program_name=payload.program_name,
-            broadcast_date=payload.broadcast_date,
-            file_url=payload.file_url,
-            file_name=payload.file_name,
-            status="uploading",
-            policy_pack_ids=pack_ids,
-        )
-        db.add(c)
-        db.flush()
-        db.refresh(c)
-        case_id = str(c.id)
+            c = Case(
+                user_id=user.id,
+                station_name=payload.station_name,
+                program_name=payload.program_name,
+                broadcast_date=payload.broadcast_date,
+                file_url=payload.file_url,
+                file_name=payload.file_name,
+                status="uploading",
+                policy_pack_ids=pack_ids,
+            )
+            db.add(c)
+            db.flush()
+            db.refresh(c)
+            case_id = str(c.id)
 
-        q = get_queue()
-        if q is not None:
-            q.enqueue(analyze_case, case_id, job_timeout=60 * 60)
-        else:
-            # Redis not configured — run job in background thread
-            import threading
-            t = threading.Thread(target=analyze_case, args=(case_id,), daemon=True)
-            t.start()
+            try:
+                q = get_queue()
+                if q is not None:
+                    q.enqueue(analyze_case, case_id, job_timeout=60 * 60)
+                else:
+                    t = threading.Thread(target=analyze_case, args=(case_id,), daemon=True)
+                    t.start()
+            except Exception as qe:
+                logging.warning(f"Queue error (job will run inline): {qe}")
+                t = threading.Thread(target=analyze_case, args=(case_id,), daemon=True)
+                t.start()
 
-        return CaseOut(**c.__dict__)
+            return CaseOut(**c.__dict__)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Case creation failed")
+        raise HTTPException(status_code=500, detail=f"Case creation failed: {str(e)}")
 
 
 @router.get("/cases", response_model=PaginatedCases)

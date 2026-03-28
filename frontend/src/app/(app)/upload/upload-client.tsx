@@ -17,7 +17,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type PolicyPack = { id: string; name: string; is_default: boolean };
 
-type Step = "idle" | "uploading" | "processing" | "done";
+type Step = "idle" | "uploading" | "processing" | "done" | "failed";
 
 function prettyBytes(n: number) {
   const u = ["B", "KB", "MB", "GB"];
@@ -98,7 +98,7 @@ export function UploadClient() {
     const token = await getToken();
     if (!token) {
       toast.error("Not authenticated.");
-      setStep("idle");
+      setStep("failed");
       return;
     }
 
@@ -124,14 +124,14 @@ export function UploadClient() {
       toast.error(err?.name === "AbortError"
         ? "Request timed out. Check that the backend is live and storage (R2/S3) is configured."
         : `Upload failed: ${err?.message || "Network error"}`);
-      setStep("idle");
+      setStep("failed");
       return;
     }
 
     if (!presignedRes.ok) {
       const t = await presignedRes.text().catch(() => "");
       toast.error(t || "Failed to get upload URL — check storage credentials in Railway.");
-      setStep("idle");
+      setStep("failed");
       return;
     }
 
@@ -139,42 +139,65 @@ export function UploadClient() {
     setProgress(15);
 
     // 2) PUT file directly to storage
-    const putRes = await fetch(presigned.upload_url, {
-      method: "PUT",
-      headers: {
-        "content-type": file.type || "application/octet-stream",
-      },
-      body: file,
-    });
-    if (!putRes.ok) {
-      toast.error("Upload failed. Please try again.");
-      setStep("idle");
+    try {
+      const putRes = await fetch(presigned.upload_url, {
+        method: "PUT",
+        headers: { "content-type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!putRes.ok) {
+        toast.error(`Storage upload failed (${putRes.status}). Check R2 CORS policy and credentials.`);
+        setStep("failed");
+        return;
+      }
+    } catch (err: any) {
+      toast.error(`Storage upload error: ${err?.message || "Network error"}`);
+      setStep("failed");
       return;
     }
 
     setProgress(55);
 
     // 3) Create case + trigger job
-    const createRes = await fetch(`${API_URL}/api/cases`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        station_name: stationName || null,
-        program_name: programName || null,
-        broadcast_date: broadcastDate || null,
-        file_url: presigned.file_url,
-        file_name: file.name,
-        policy_pack_ids: selectedPackIds,
-      }),
-    });
+    let createRes: Response;
+    try {
+      const ctrl2 = new AbortController();
+      const tid2 = setTimeout(() => ctrl2.abort(), 20000);
+      createRes = await fetch(`${API_URL}/api/cases`, {
+        method: "POST",
+        signal: ctrl2.signal,
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          station_name: stationName || null,
+          program_name: programName || null,
+          broadcast_date: broadcastDate || null,
+          file_url: presigned.file_url,
+          file_name: file.name,
+          policy_pack_ids: selectedPackIds,
+        }),
+      });
+      clearTimeout(tid2);
+    } catch (err: any) {
+      toast.error(err?.name === "AbortError"
+        ? "Case creation timed out. Check Railway backend logs."
+        : `Network error creating case: ${err?.message}`);
+      setStep("failed");
+      return;
+    }
 
     if (!createRes.ok) {
-      const t = await createRes.text();
-      toast.error(t || "Failed to create case");
-      setStep("idle");
+      let errMsg = `Error ${createRes.status}`;
+      try {
+        const body = await createRes.json();
+        errMsg = body?.detail || body?.message || JSON.stringify(body);
+      } catch {
+        errMsg = await createRes.text().catch(() => errMsg);
+      }
+      toast.error(`Failed to create case: ${errMsg}`);
+      setStep("failed");
       return;
     }
 
@@ -292,22 +315,31 @@ export function UploadClient() {
 
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm text-muted-foreground">Estimated time: {estimate}</div>
-              <Button variant="gold" size="lg" onClick={upload} disabled={!file || step === "uploading"}>
-                {step === "uploading" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
-                  </>
-                ) : (
-                  "Start Analysis"
-                )}
-              </Button>
+              {step === "failed" ? (
+                <Button variant="outline" size="lg" onClick={() => { setStep("idle"); setProgress(0); }}>
+                  Try again
+                </Button>
+              ) : (
+                <Button variant="gold" size="lg" onClick={upload} disabled={!file || step === "uploading" || step === "processing"}>
+                  {step === "uploading" ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                  ) : step === "processing" ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Starting analysis...</>
+                  ) : (
+                    "Start Analysis"
+                  )}
+                </Button>
+              )}
             </div>
 
             {step !== "idle" ? (
               <div className="space-y-2">
-                <Progress value={progress} />
-                <div className="text-xs text-muted-foreground">
-                  {step === "uploading" ? "Uploading → creating case" : step === "processing" ? "Processing" : "Done"}
+                {step !== "failed" && <Progress value={progress} />}
+                <div className={`text-xs font-medium ${step === "failed" ? "text-red-600" : "text-muted-foreground"}`}>
+                  {step === "uploading" && "⬆ Uploading file to storage..."}
+                  {step === "processing" && "⚙ Creating case and starting analysis..."}
+                  {step === "done" && "✓ Done — redirecting to case..."}
+                  {step === "failed" && "✗ Something went wrong. See the error above and try again."}
                 </div>
               </div>
             ) : null}
