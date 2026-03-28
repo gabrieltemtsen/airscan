@@ -47,6 +47,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             import logging
             logging.warning(f"DB init skipped (no DATABASE_URL?): {e}")
+            return
+        # Seed NBC Act policy pack if not already present
+        try:
+            import seed_policies
+            seed_policies.seed()
+        except Exception as e:
+            import logging
+            logging.warning(f"Policy seed skipped: {e}")
 
     return app
 

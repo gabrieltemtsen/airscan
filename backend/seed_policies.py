@@ -88,6 +88,14 @@ nbc_clauses = [
 
 
 def seed() -> None:
+    try:
+        from app.db.base import Base
+        from app.db.session import engine
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Warning: DB init failed: {e}")
+        return
+
     db = SessionLocal()
     try:
         pack = (
@@ -135,4 +143,9 @@ def seed() -> None:
 
 
 if __name__ == "__main__":
-    seed()
+    try:
+        seed()
+    except Exception as e:
+        print(f"Seed failed (non-fatal): {e}")
+        import sys
+        sys.exit(0)  # exit 0 so startup continues
