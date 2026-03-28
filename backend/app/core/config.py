@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # AI
     openai_api_key: str = ""
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"  # fallback model widely available
 
     # Storage (S3-compatible, e.g., Cloudflare R2)
     aws_access_key_id: str = ""
