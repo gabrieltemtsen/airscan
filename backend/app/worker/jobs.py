@@ -21,6 +21,18 @@ from app.services.transcription import transcribe_whisper
 VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 
+# Whisper supported: flac, m4a, mp3, mp4, mpeg, mpga, oga, ogg, wav, webm
+WHISPER_OK_EXTS = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
+
+def _ensure_whisper_supported(in_path: str, original_name: str, workdir: str) -> str:
+    """Convert unsupported audio types (e.g. .aac) to .mp3 for Whisper."""
+    ext = os.path.splitext(original_name.lower())[1]
+    if ext in WHISPER_OK_EXTS:
+        return in_path
+    out_path = os.path.join(workdir, "audio_for_whisper.mp3")
+    subprocess.check_call(["ffmpeg", "-y", "-i", in_path, "-acodec", "mp3", out_path])
+    return out_path
+
 
 def _is_video(filename: str) -> bool:
     ext = os.path.splitext(filename.lower())[1]
@@ -155,8 +167,9 @@ def analyze_case(case_id: str) -> None:
                 key = make_object_key(f"{case.id}-audio.mp3")
                 case.audio_url = upload_file(audio_path, key, "audio/mpeg")
 
-            # Transcribe
-            t = transcribe_whisper(audio_path)
+            # Transcribe (convert unsupported audio like .aac → .mp3)
+            whisper_path = _ensure_whisper_supported(audio_path, case.file_name, td)
+            t = transcribe_whisper(whisper_path)
             segments = t["segments"]
             full_text = t["text"]
 
