@@ -55,9 +55,16 @@ def create_case(payload: CaseCreateIn, user=Depends(get_current_user)):
         db.add(c)
         db.flush()
         db.refresh(c)
+        case_id = str(c.id)
 
         q = get_queue()
-        q.enqueue(analyze_case, str(c.id), job_timeout=60 * 60)
+        if q is not None:
+            q.enqueue(analyze_case, case_id, job_timeout=60 * 60)
+        else:
+            # Redis not configured — run job in background thread
+            import threading
+            t = threading.Thread(target=analyze_case, args=(case_id,), daemon=True)
+            t.start()
 
         return CaseOut(**c.__dict__)
 
