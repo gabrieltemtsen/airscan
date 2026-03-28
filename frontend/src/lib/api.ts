@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
+
 export type ApiCaseStatus = "uploading" | "processing" | "complete" | "failed";
 
 export type CaseListItem = {
@@ -79,8 +80,13 @@ export type UserMe = {
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function apiFetch(path: string, init?: RequestInit) {
-  const { getToken } = await auth();
-  const token = await getToken();
+  let token: string | null = null;
+  try {
+    const session = await auth();
+    token = await session.getToken();
+  } catch {
+    // auth() may throw if Clerk is not fully configured — proceed without token
+  }
 
   const res = await fetch(`${baseUrl}${path}`, {
     ...init,

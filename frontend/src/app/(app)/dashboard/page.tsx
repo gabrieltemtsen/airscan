@@ -14,9 +14,11 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={v as any}>{status}</Badge>;
 }
 
+const DEFAULT_ME = { email: "", plan: "free" as const, credits_seconds: 0, free_analyses_used: 0 };
+
 export default async function DashboardPage() {
   const [me, usage, cases] = await Promise.all([
-    api.me(),
+    api.me().catch(() => DEFAULT_ME),
     api.usage().catch(() => null),
     api.cases({ page: 1, page_size: 7 }).catch(() => ({ items: [], total: 0 })),
   ]);
