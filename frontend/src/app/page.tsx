@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import { ArrowRight, AudioLines, FileSearch, ShieldCheck, Sparkles } from "lucide-react";
+import { AudioLines, FileSearch, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { NavAuthButtons, HeroAuthButton } from "@/components/auth-buttons";
 
 function PricingCard({
   name,
@@ -58,21 +58,8 @@ export default function LandingPage() {
             <span>AirScan</span>
             <Badge variant="gold" className="ml-2">NBC Nigeria</Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="outline">Sign in</Button>
-              </SignInButton>
-              <SignInButton mode="modal">
-                <Button variant="gold">Start Free Trial</Button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <Button asChild variant="gold">
-                <Link href="/dashboard">Go to dashboard</Link>
-              </Button>
-            </SignedIn>
-          </div>
+          {/* Client-side auth buttons — no server Clerk calls */}
+          <NavAuthButtons />
         </div>
       </header>
 
@@ -88,25 +75,14 @@ export default function LandingPage() {
                 AI-Powered Broadcast Compliance Monitoring
               </h1>
               <p className="mt-4 text-balance text-lg text-muted-foreground">
-                Upload broadcast audio/video, transcribe with Whisper, detect NBC compliance breaches with Gemini, and export
-                regulator-ready reports.
+                Upload broadcast audio/video, transcribe with Whisper, detect NBC compliance breaches with Gemini,
+                and export regulator-ready reports — in minutes.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <Button variant="gold" size="lg">
-                      Start Free Trial <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </SignInButton>
-                  <Button asChild variant="outline" size="lg">
-                    <a href="#pricing">View pricing</a>
-                  </Button>
-                </SignedOut>
-                <SignedIn>
-                  <Button asChild variant="gold" size="lg">
-                    <Link href="/upload">New analysis</Link>
-                  </Button>
-                </SignedIn>
+                <HeroAuthButton />
+                <Button asChild variant="outline" size="lg">
+                  <a href="#pricing">View pricing</a>
+                </Button>
               </div>
             </div>
 
@@ -116,58 +92,63 @@ export default function LandingPage() {
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="flex gap-3">
-                  <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-navy text-white">
+                  <div className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy text-white">
                     <AudioLines className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="font-semibold">Upload</div>
-                    <div className="text-sm text-muted-foreground">Audio/video up to 60 minutes, 500MB.</div>
+                    <div className="text-sm text-muted-foreground">Audio/video up to 60 minutes, 500 MB.</div>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gold text-navy">
+                  <div className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold text-navy">
                     <FileSearch className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="font-semibold">Transcribe → Detect</div>
-                    <div className="text-sm text-muted-foreground">Clause-linked findings with severity + confidence.</div>
+                    <div className="text-sm text-muted-foreground">Clause-linked findings with severity, confidence, and timestamps.</div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-white/60 p-4 text-sm">
-                  <div className="font-semibold text-navy">Outputs</div>
-                  <div className="mt-1 text-muted-foreground">PDF compliance report + CSV findings for audit workflows.</div>
+                <div className="flex gap-3">
+                  <div className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy text-white">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold">Review → Export</div>
+                    <div className="text-sm text-muted-foreground">Approve, reject, or annotate findings. Export PDF compliance report.</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </section>
 
-        <section className="container py-4 md:py-10">
+        <section className="container py-4 md:py-8">
           <div className="grid gap-4 md:grid-cols-4">
-            {["Upload", "Transcribe", "Detect", "Report"].map((t) => (
+            {(
+              [
+                ["Upload", "Drag-and-drop ingest with direct-to-storage uploads."],
+                ["Transcribe", "Whisper timestamped segments for fast review."],
+                ["Detect", "Gemini breach analysis using your policy packs."],
+                ["Report", "Export-ready PDF/CSV reports and reviewer actions."],
+              ] as [string, string][]
+            ).map(([t, desc]) => (
               <Card key={t}>
                 <CardHeader>
                   <CardTitle className="text-base text-navy">{t}</CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {t === "Upload" && "Drag-and-drop ingest with direct-to-storage uploads."}
-                  {t === "Transcribe" && "Whisper timestamped segments for fast review."}
-                  {t === "Detect" && "Gemini-based breach analysis using your policy packs."}
-                  {t === "Report" && "Export-ready PDF/CSV reports and reviewer actions."}
-                </CardContent>
+                <CardContent className="text-sm text-muted-foreground">{desc}</CardContent>
               </Card>
             ))}
           </div>
         </section>
 
         <section id="pricing" className="container py-16">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <h2 className="text-3xl font-semibold tracking-tight text-navy">Pricing</h2>
-              <p className="mt-2 text-muted-foreground">
-                Start with a free trial, then choose pay-per-use credits or a monthly subscription.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-3xl font-semibold tracking-tight text-navy">Pricing</h2>
+            <p className="mt-2 text-muted-foreground">
+              Start free, then pay-per-use or subscribe.
+            </p>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -175,19 +156,17 @@ export default function LandingPage() {
               name="Free Trial"
               price="₦0"
               subtitle="3 analyses · max 10 minutes each"
-              bullets={["Policy pack: NBC Act", "Clause-linked findings", "PDF + CSV export"]}
+              bullets={["NBC Act policy pack included", "Clause-linked findings", "PDF + CSV export"]}
               cta={
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <Button variant="gold" className="w-full">Start</Button>
-                  </SignInButton>
-                </SignedOut>
+                <Button asChild variant="gold" className="w-full">
+                  <Link href="/sign-up">Start free</Link>
+                </Button>
               }
             />
             <PricingCard
               name="Express"
               price="Credits"
-              subtitle="Pay-per-use"
+              subtitle="Pay-per-use in NGN"
               bullets={["₦5,000 / ₦20,000 / ₦100,000 packs", "Fast turnaround", "Great for irregular workloads"]}
               cta={
                 <Button asChild variant="outline" className="w-full">
@@ -199,9 +178,13 @@ export default function LandingPage() {
             <PricingCard
               name="Starter"
               price="₦25,000/mo"
-              subtitle="10 hours analysis · 3 seats"
+              subtitle="10 hours · 3 seats"
               bullets={["Team workspace", "Usage tracking", "Priority processing"]}
-              cta={<Button asChild className="w-full"><Link href="/billing">Choose Starter</Link></Button>}
+              cta={
+                <Button asChild className="w-full">
+                  <Link href="/billing">Choose Starter</Link>
+                </Button>
+              }
             />
           </div>
 
@@ -211,14 +194,22 @@ export default function LandingPage() {
               price="₦75,000/mo"
               subtitle="50 hours · 10 seats · audit trail"
               bullets={["Advanced audit trail", "Policy library management", "Reviewer workflow"]}
-              cta={<Button asChild className="w-full"><Link href="/billing">Choose Pro</Link></Button>}
+              cta={
+                <Button asChild className="w-full">
+                  <Link href="/billing">Choose Pro</Link>
+                </Button>
+              }
             />
             <PricingCard
               name="Enterprise"
               price="Custom"
               subtitle="Unlimited · SSO · custom hosting"
-              bullets={["Dedicated infra options", "SSO/SAML", "Custom policy integrations"]}
-              cta={<Button variant="outline" className="w-full" asChild><a href="mailto:sales@airscan.ng">Contact sales</a></Button>}
+              bullets={["Dedicated infrastructure", "SSO/SAML", "Custom policy integrations"]}
+              cta={
+                <Button variant="outline" className="w-full" asChild>
+                  <a href="mailto:hello@airscan.ng">Contact sales</a>
+                </Button>
+              }
             />
           </div>
         </section>
@@ -226,7 +217,7 @@ export default function LandingPage() {
         <footer className="border-t border-border/70 bg-white/60 py-10">
           <div className="container flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
             <div className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} AirScan. Built for broadcast compliance monitoring.
+              © {new Date().getFullYear()} AirScan — AI Broadcast Compliance Monitoring for NBC Nigeria
             </div>
             <div className="text-sm text-muted-foreground">
               <a className="hover:text-navy" href="#pricing">Pricing</a>
