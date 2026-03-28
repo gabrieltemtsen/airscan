@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from rq import Connection, Worker
+import sys
+
+from rq import Worker
 
 from app.worker.queue import get_redis
 
 
-def main():
+def main() -> None:
     redis_conn = get_redis()
-    with Connection(redis_conn):
-        w = Worker(["airscan"])
-        w.work(with_scheduler=False)
+    if redis_conn is None:
+        print("REDIS_URL is not set. Worker cannot start.")
+        sys.exit(1)
+
+    # RQ v2+ no longer exposes Connection context manager; pass connection directly.
+    worker = Worker(["airscan"], connection=redis_conn)
+    worker.work(with_scheduler=False)
 
 
 if __name__ == "__main__":
