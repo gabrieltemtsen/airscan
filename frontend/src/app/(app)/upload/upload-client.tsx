@@ -102,22 +102,35 @@ export function UploadClient() {
       return;
     }
 
-    // 1) presigned URL
-    const presignedRes = await fetch(`${API_URL}/api/upload/presigned`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        file_name: file.name,
-        content_type: file.type || "application/octet-stream",
-      }),
-    });
+    // 1) presigned URL (15s timeout)
+    let presignedRes: Response;
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      presignedRes = await fetch(`${API_URL}/api/upload/presigned`, {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          file_name: file.name,
+          content_type: file.type || "application/octet-stream",
+        }),
+      });
+      clearTimeout(tid);
+    } catch (err: any) {
+      toast.error(err?.name === "AbortError"
+        ? "Request timed out. Check that the backend is live and storage (R2/S3) is configured."
+        : `Upload failed: ${err?.message || "Network error"}`);
+      setStep("idle");
+      return;
+    }
 
     if (!presignedRes.ok) {
-      const t = await presignedRes.text();
-      toast.error(t || "Failed to get upload URL");
+      const t = await presignedRes.text().catch(() => "");
+      toast.error(t || "Failed to get upload URL — check storage credentials in Railway.");
       setStep("idle");
       return;
     }
