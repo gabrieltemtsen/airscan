@@ -9,6 +9,7 @@ from app.api.findings import router as findings_router
 from app.api.policy import router as policy_router
 from app.api.upload import router as upload_router
 from app.api.user import router as user_router
+from app.api.debug import router as debug_router
 from app.core.config import settings
 from app.db.session import engine
 from app.models import billing as _billing  # noqa: F401
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(policy_router, prefix="/api")
     app.include_router(user_router, prefix="/api")
     app.include_router(billing_router, prefix="/api")
+    app.include_router(debug_router, prefix="/api")
 
     @app.get("/health")
     def health():
