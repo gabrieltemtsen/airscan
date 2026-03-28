@@ -90,10 +90,7 @@ export function UploadClient() {
 
   const upload = useCallback(async () => {
     if (!file) return;
-    if (selectedPackIds.length === 0) {
-      toast.error("Select at least one policy pack.");
-      return;
-    }
+    // Allow empty pack_ids — backend will auto-use the default NBC Act pack
 
     setStep("uploading");
     setProgress(5);
@@ -246,27 +243,33 @@ export function UploadClient() {
               <label className="text-sm font-medium text-navy">Policy Packs</label>
               <div className="mt-1 rounded-xl border border-border/70 bg-white/50 p-3">
                 <div className="flex flex-wrap gap-2">
-                  {packs.map((p) => {
-                    const selected = selectedPackIds.includes(p.id);
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPackIds((prev) =>
-                            selected ? prev.filter((x) => x !== p.id) : [...prev, p.id]
-                          );
-                        }}
-                        className={
-                          "rounded-full border px-3 py-1 text-sm font-medium transition-colors " +
-                          (selected ? "border-gold bg-gold/20 text-navy" : "border-border/70 hover:bg-navy/5 text-navy")
-                        }
-                      >
-                        {p.name}
-                        {p.is_default ? " (default)" : ""}
-                      </button>
-                    );
-                  })}
+                  {packs.length === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/60 bg-gold/10 px-3 py-1 text-sm font-medium text-navy">
+                      ✓ NBC Act 1992 (default — auto-selected)
+                    </span>
+                  ) : (
+                    packs.map((p) => {
+                      const selected = selectedPackIds.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPackIds((prev) =>
+                              selected ? prev.filter((x) => x !== p.id) : [...prev, p.id]
+                            );
+                          }}
+                          className={
+                            "rounded-full border px-3 py-1 text-sm font-medium transition-colors " +
+                            (selected ? "border-gold bg-gold/20 text-navy" : "border-border/70 hover:bg-navy/5 text-navy")
+                          }
+                        >
+                          {p.name}
+                          {p.is_default ? " (default)" : ""}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
