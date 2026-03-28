@@ -48,3 +48,23 @@ body {
 .text-balance {
   text-wrap: balance;
 }
+
+@keyframes airscan-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.airscan-hero-bg {
+  background: radial-gradient(900px 500px at 15% 10%, rgba(245, 166, 35, 0.18), transparent 60%),
+    radial-gradient(700px 400px at 85% 20%, rgba(245, 166, 35, 0.12), transparent 60%),
+    linear-gradient(120deg, #0A1628, #07101f, #0A1628);
+  background-size: 200% 200%;
+  animation: airscan-gradient 14s ease infinite;
+}

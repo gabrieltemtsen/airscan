@@ -8,7 +8,6 @@ import {
   Check,
   Download,
   FileWarning,
-  Loader2,
   Pencil,
   RefreshCw,
   ThumbsDown,
@@ -20,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton, SkeletonRows } from "@/components/ui/skeleton-loaders";
 import { formatSeconds, formatTimestamp } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -67,6 +67,54 @@ function severityVariant(s: Finding["severity"]) {
   return "low";
 }
 
+function ProcessingStepper({ status }: { status: CaseDetail["status"] }) {
+  const steps = [
+    { key: "upload", label: "Uploading" },
+    { key: "extract", label: "Extracting audio" },
+    { key: "transcribe", label: "Transcribing" },
+    { key: "analyze", label: "Analyzing (Gemini/AI)" },
+    { key: "complete", label: "Complete" },
+  ] as const;
+
+  // We don’t have server-side stage granularity; map to a sensible UI.
+  const currentIndex = status === "uploading" ? 0 : status === "processing" ? 2 : status === "complete" ? 4 : 4;
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-white/50 p-4">
+      <div className="text-sm font-semibold text-navy">Progress</div>
+      <div className="mt-3 space-y-2">
+        {steps.map((s, idx) => {
+          const done = idx < currentIndex;
+          const active = idx === currentIndex && status !== "complete";
+          return (
+            <div key={s.key} className="flex items-center gap-3">
+              <div
+                className={
+                  "relative flex h-6 w-6 items-center justify-center rounded-full border transition-colors duration-200 " +
+                  (done
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : active
+                      ? "border-gold bg-gold/15 text-navy"
+                      : "border-border/70 bg-white text-muted-foreground")
+                }
+              >
+                {done ? "✓" : idx + 1}
+                {active ? (
+                  <span className="absolute -inset-1 rounded-full border border-gold/40 animate-pulse" />
+                ) : null}
+              </div>
+              <div className={done ? "text-sm font-medium text-navy" : active ? "text-sm font-medium text-navy" : "text-sm text-muted-foreground"}>
+                {s.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 text-xs text-muted-foreground">Auto-updating every 5 seconds while processing.</div>
+    </div>
+  );
+}
+
 export function CaseDetailClient({ caseId }: { caseId: string }) {
   const { getToken } = useAuth();
 
@@ -106,8 +154,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
     if (d.status === "complete") {
       const [tRes, fRes] = await Promise.all([
         fetch(`${API_URL}/api/cases/${caseId}/transcript`, { headers, cache: "no-store" }),
-        fetch(
-          `${API_URL}/api/cases/${caseId}/findings${severity !== "all" ? `?severity=${severity}` : ""}`,
+        fetch(`${API_URL}/api/cases/${caseId}/findings${severity !== "all" ? `?severity=${severity}` : ""}`,
           { headers, cache: "no-store" }
         ),
       ]);
@@ -130,7 +177,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
     if (detail.status === "processing" || detail.status === "uploading") {
       const t = setInterval(() => {
         fetchAll().catch(() => null);
-      }, 6000);
+      }, 5000);
       return () => clearInterval(t);
     }
   }, [detail, fetchAll]);
@@ -167,24 +214,27 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
     [fetchAll, getToken]
   );
 
-  const download = useCallback(async (kind: "pdf" | "csv") => {
-    const token = await getToken();
-    if (!token) return;
-    const res = await fetch(`${API_URL}/api/cases/${caseId}/export/${kind}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      toast.error(await res.text());
-      return;
-    }
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `airscan-${caseId}.${kind}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  }, [caseId, getToken]);
+  const download = useCallback(
+    async (kind: "pdf" | "csv") => {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/cases/${caseId}/export/${kind}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast.error(await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `airscan-${caseId}.${kind}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+    [caseId, getToken]
+  );
 
   return (
     <div className="space-y-6">
@@ -192,7 +242,15 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-2xl font-semibold tracking-tight text-navy">Case</h1>
-            {detail ? <Badge variant={detail.status === "complete" ? "low" : detail.status === "failed" ? "critical" : "medium"}>{detail.status}</Badge> : null}
+            {detail ? (
+              <Badge
+                variant={
+                  detail.status === "complete" ? "low" : detail.status === "failed" ? "critical" : "medium"
+                }
+              >
+                {detail.status}
+              </Badge>
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {detail?.station_name || "—"} · {detail?.program_name || "—"} · {detail?.broadcast_date || "—"}
@@ -222,10 +280,16 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
 
       {loading && !detail ? (
         <Card>
-          <CardContent className="flex items-center gap-2 p-6 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+          <CardContent className="space-y-3 p-6">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-4 w-72" />
+            <Skeleton className="h-4 w-56" />
           </CardContent>
         </Card>
+      ) : null}
+
+      {detail?.status === "uploading" || detail?.status === "processing" ? (
+        <ProcessingStepper status={detail.status} />
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr_420px]">
@@ -245,7 +309,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
               />
             ) : detail?.audio_url || detail?.file_url ? (
               <div className="rounded-xl border border-border/70 bg-white/50 p-4 text-sm text-muted-foreground">
-                Preparing a secure streaming URL...
+                Preparing a secure streaming URL…
               </div>
             ) : (
               <div className="rounded-xl border border-border/70 bg-white/50 p-4 text-sm text-muted-foreground">
@@ -268,8 +332,13 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
           </CardHeader>
           <CardContent>
             {!detail || detail.status !== "complete" ? (
-              <div className="text-sm text-muted-foreground">
-                Transcript will be available when processing completes.
+              <div className="text-sm text-muted-foreground">Transcript will be available when processing completes.</div>
+            ) : loading && !transcript ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-3/4" />
+                <SkeletonRows count={8} cols={1} className="mt-4" />
               </div>
             ) : transcript ? (
               <div className="max-h-[70vh] space-y-2 overflow-auto pr-2">
@@ -282,13 +351,19 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
                       type="button"
                       onClick={() => jump(seg.start)}
                       className={
-                        "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors " +
+                        "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                         (has ? "border-gold bg-gold/10" : "border-border/70 hover:bg-navy/5")
                       }
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium text-navy">{formatTimestamp(seg.start)}–{formatTimestamp(seg.end)}</div>
-                        {has ? <Badge variant="gold">{hits.length} flagged</Badge> : <span className="text-xs text-muted-foreground">OK</span>}
+                        <div className="font-medium text-navy">
+                          {formatTimestamp(seg.start)}–{formatTimestamp(seg.end)}
+                        </div>
+                        {has ? (
+                          <Badge variant="gold">{hits.length} flagged</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">OK</span>
+                        )}
                       </div>
                       <div className={has ? "mt-1 text-navy" : "mt-1 text-muted-foreground"}>{seg.text}</div>
                     </button>
@@ -306,7 +381,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="text-navy">Findings</CardTitle>
               <select
-                className="h-9 rounded-md border border-border/70 bg-white/70 px-3 text-sm"
+                className="h-9 rounded-md border border-border/70 bg-white/70 px-3 text-sm text-navy shadow-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value)}
               >
@@ -321,6 +396,16 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
           <CardContent>
             {!detail || detail.status !== "complete" ? (
               <div className="text-sm text-muted-foreground">Findings will be available when processing completes.</div>
+            ) : loading && findings.length === 0 ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border/70 bg-white/50 p-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="mt-2 h-3 w-56" />
+                    <Skeleton className="mt-3 h-16 w-full" />
+                  </div>
+                ))}
+              </div>
             ) : findings.length === 0 ? (
               <div className="text-sm text-muted-foreground">No findings flagged for the selected filter.</div>
             ) : (
@@ -328,11 +413,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
                 {findings.map((f) => (
                   <div key={f.id} className="rounded-xl border border-border/70 bg-white/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => jump(f.timestamp_start)}
-                        className="text-left"
-                      >
+                      <button type="button" onClick={() => jump(f.timestamp_start)} className="text-left">
                         <div className="font-semibold text-navy">
                           {formatTimestamp(f.timestamp_start)}–{formatTimestamp(f.timestamp_end)}
                         </div>
@@ -361,18 +442,10 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
                         Status: <span className="font-medium text-navy">{f.reviewer_status}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => patchFinding(f.id, { reviewer_status: "approved" })}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => patchFinding(f.id, { reviewer_status: "approved" })}>
                           <ThumbsUp className="h-4 w-4" /> Approve
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => patchFinding(f.id, { reviewer_status: "rejected" })}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => patchFinding(f.id, { reviewer_status: "rejected" })}>
                           <ThumbsDown className="h-4 w-4" /> Reject
                         </Button>
                       </div>
@@ -385,9 +458,7 @@ export function CaseDetailClient({ caseId }: { caseId: string }) {
                       <div className="flex gap-2">
                         <Input
                           value={noteEdit[f.id] ?? f.reviewer_note ?? ""}
-                          onChange={(e) =>
-                            setNoteEdit((prev) => ({ ...prev, [f.id]: e.target.value }))
-                          }
+                          onChange={(e) => setNoteEdit((prev) => ({ ...prev, [f.id]: e.target.value }))}
                           placeholder="Optional note..."
                         />
                         <Button

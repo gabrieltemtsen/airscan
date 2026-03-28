@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Dropzone from "react-dropzone";
 import { toast } from "sonner";
-import { Calendar, FileAudio, FileVideo, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
+import { Calendar, FileAudio, FileVideo, ShieldCheck, UploadCloud } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,10 @@ function prettyBytes(n: number) {
     i++;
   }
   return `${v.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
+}
+
+function InlinePulse() {
+  return <span className="inline-block h-2 w-2 rounded-full bg-white/80 animate-pulse" />;
 }
 
 export function UploadClient() {
@@ -121,9 +125,11 @@ export function UploadClient() {
       });
       clearTimeout(tid);
     } catch (err: any) {
-      toast.error(err?.name === "AbortError"
-        ? "Request timed out. Check that the backend is live and storage (R2/S3) is configured."
-        : `Upload failed: ${err?.message || "Network error"}`);
+      toast.error(
+        err?.name === "AbortError"
+          ? "Request timed out. Check that the backend is live and storage (R2/S3) is configured."
+          : `Upload failed: ${err?.message || "Network error"}`
+      );
       setStep("failed");
       return;
     }
@@ -181,9 +187,11 @@ export function UploadClient() {
       });
       clearTimeout(tid2);
     } catch (err: any) {
-      toast.error(err?.name === "AbortError"
-        ? "Case creation timed out. Check Railway backend logs."
-        : `Network error creating case: ${err?.message}`);
+      toast.error(
+        err?.name === "AbortError"
+          ? "Case creation timed out. Check Railway backend logs."
+          : `Network error creating case: ${err?.message}`
+      );
       setStep("failed");
       return;
     }
@@ -215,9 +223,7 @@ export function UploadClient() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-navy">New Analysis</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload a broadcast file and choose the policy packs to check against.
-        </p>
+        <p className="text-sm text-muted-foreground">Upload a broadcast file and choose the policy packs to check against.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -231,7 +237,7 @@ export function UploadClient() {
                 <div
                   {...getRootProps()}
                   className={
-                    "cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors " +
+                    "w-full cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                     (isDragActive ? "border-gold bg-gold/10" : "border-border/70 bg-white/50")
                   }
                 >
@@ -241,21 +247,32 @@ export function UploadClient() {
                       <UploadCloud className="h-6 w-6" />
                     </div>
                     <div className="mt-3 text-base font-semibold text-navy">
-                      {file ? file.name : "Drag & drop a file, or click to select"}
+                      {file ? "File selected" : "Drag & drop a file, or click to select"}
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       MP3, MP4, WAV, AVI, MOV, M4A · Max 500MB · Max 60 minutes
                     </div>
-                    {file ? (
-                      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                        <Badge variant="outline">{prettyBytes(file.size)}</Badge>
-                        <Badge variant="outline">{file.type.includes("video") ? "Video" : "Audio"}</Badge>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               )}
             </Dropzone>
+
+            {file ? (
+              <div className="rounded-xl border border-border/70 bg-white/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-navy">{file.name}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{prettyBytes(file.size)} · {file.type.includes("video") ? "Video" : "Audio"}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">Ready</Badge>
+                    <Button variant="outline" size="sm" onClick={() => setFile(null)}>
+                      Change
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-3 md:grid-cols-3">
               <div>
@@ -291,12 +308,10 @@ export function UploadClient() {
                           key={p.id}
                           type="button"
                           onClick={() => {
-                            setSelectedPackIds((prev) =>
-                              selected ? prev.filter((x) => x !== p.id) : [...prev, p.id]
-                            );
+                            setSelectedPackIds((prev) => (selected ? prev.filter((x) => x !== p.id) : [...prev, p.id]));
                           }}
                           className={
-                            "rounded-full border px-3 py-1 text-sm font-medium transition-colors " +
+                            "rounded-full border px-3 py-1 text-sm font-medium transition-colors duration-200 " +
                             (selected ? "border-gold bg-gold/20 text-navy" : "border-border/70 hover:bg-navy/5 text-navy")
                           }
                         >
@@ -308,23 +323,39 @@ export function UploadClient() {
                   )}
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Default pack includes key NBC Act clauses. Upload additional packs in the Policy Library.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">Default pack includes key NBC Act clauses. Upload additional packs in the Policy Library.</p>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">Estimated time: {estimate}</div>
               {step === "failed" ? (
-                <Button variant="outline" size="lg" onClick={() => { setStep("idle"); setProgress(0); }}>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setStep("idle");
+                    setProgress(0);
+                  }}
+                >
                   Try again
                 </Button>
               ) : (
-                <Button variant="gold" size="lg" onClick={upload} disabled={!file || step === "uploading" || step === "processing"}>
+                <Button
+                  variant="gold"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={upload}
+                  disabled={!file || step === "uploading" || step === "processing"}
+                >
                   {step === "uploading" ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                    <span className="inline-flex items-center gap-2">
+                      <InlinePulse /> Uploading…
+                    </span>
                   ) : step === "processing" ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Starting analysis...</>
+                    <span className="inline-flex items-center gap-2">
+                      <InlinePulse /> Starting analysis…
+                    </span>
                   ) : (
                     "Start Analysis"
                   )}
@@ -336,9 +367,9 @@ export function UploadClient() {
               <div className="space-y-2">
                 {step !== "failed" && <Progress value={progress} />}
                 <div className={`text-xs font-medium ${step === "failed" ? "text-red-600" : "text-muted-foreground"}`}>
-                  {step === "uploading" && "⬆ Uploading file to storage..."}
-                  {step === "processing" && "⚙ Creating case and starting analysis..."}
-                  {step === "done" && "✓ Done — redirecting to case..."}
+                  {step === "uploading" && "⬆ Uploading file to storage…"}
+                  {step === "processing" && "⚙ Creating case and starting analysis…"}
+                  {step === "done" && "✓ Done — redirecting to case…"}
                   {step === "failed" && "✗ Something went wrong. See the error above and try again."}
                 </div>
               </div>
@@ -370,7 +401,7 @@ export function UploadClient() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-border/70 text-navy">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-white text-navy">
                 <FileVideo className="h-4 w-4" />
               </span>
               <div>

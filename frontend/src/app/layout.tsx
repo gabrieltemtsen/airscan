@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
       <html lang="en">
         <body className="min-h-dvh antialiased">
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster position="top-right" richColors closeButton />
         </body>
       </html>
     </ClerkProvider>

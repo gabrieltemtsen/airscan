@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Dropzone from "react-dropzone";
 import { toast } from "sonner";
-import { FileUp, Loader2 } from "lucide-react";
+import { FileUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function InlinePulse() {
+  return <span className="inline-block h-2 w-2 rounded-full bg-white/80 animate-pulse" />;
+}
 
 export function PolicyUploadClient() {
   const { getToken } = useAuth();
@@ -22,12 +26,15 @@ export function PolicyUploadClient() {
   const [version, setVersion] = useState<string>("v1");
   const [loading, setLoading] = useState<boolean>(false);
 
-  const onDrop = useCallback((files: File[]) => {
-    const f = files[0];
-    if (!f) return;
-    setFile(f);
-    if (!name) setName(f.name.replace(/\.[^.]+$/, ""));
-  }, [name]);
+  const onDrop = useCallback(
+    (files: File[]) => {
+      const f = files[0];
+      if (!f) return;
+      setFile(f);
+      if (!name) setName(f.name.replace(/\.[^.]+$/, ""));
+    },
+    [name]
+  );
 
   const upload = useCallback(async () => {
     if (!file) {
@@ -69,9 +76,7 @@ export function PolicyUploadClient() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-navy">Upload Policy Doc</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload a PDF/Word document. AirScan will extract and structure clauses using Gemini.
-        </p>
+        <p className="text-sm text-muted-foreground">Upload a PDF/Word document. AirScan will extract and structure clauses using Gemini.</p>
       </div>
 
       <Card>
@@ -79,12 +84,20 @@ export function PolicyUploadClient() {
           <CardTitle className="text-navy">Policy document</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Dropzone onDrop={onDrop} accept={{ "application/pdf": [".pdf"], "application/msword": [".doc"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"] }} maxFiles={1}>
+          <Dropzone
+            onDrop={onDrop}
+            accept={{
+              "application/pdf": [".pdf"],
+              "application/msword": [".doc"],
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+            }}
+            maxFiles={1}
+          >
             {({ getRootProps, getInputProps, isDragActive }) => (
               <div
                 {...getRootProps()}
                 className={
-                  "cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors " +
+                  "w-full cursor-pointer rounded-xl border-2 border-dashed p-8 transition-colors duration-200 " +
                   (isDragActive ? "border-gold bg-gold/10" : "border-border/70 bg-white/50")
                 }
               >
@@ -93,9 +106,7 @@ export function PolicyUploadClient() {
                   <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-navy text-white shadow-glow">
                     <FileUp className="h-6 w-6" />
                   </div>
-                  <div className="mt-3 text-base font-semibold text-navy">
-                    {file ? file.name : "Drop a PDF/DOCX here, or click to select"}
-                  </div>
+                  <div className="mt-3 text-base font-semibold text-navy">{file ? file.name : "Drop a PDF/DOCX here, or click to select"}</div>
                   <div className="mt-1 text-sm text-muted-foreground">We extract clauses into structured policy packs.</div>
                 </div>
               </div>
@@ -114,11 +125,11 @@ export function PolicyUploadClient() {
           </div>
 
           <div className="flex justify-end">
-            <Button variant="gold" onClick={upload} disabled={loading}>
+            <Button variant="gold" onClick={upload} disabled={loading} className="w-full sm:w-auto">
               {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
-                </>
+                <span className="inline-flex items-center gap-2">
+                  <InlinePulse /> Uploading…
+                </span>
               ) : (
                 "Create pack"
               )}

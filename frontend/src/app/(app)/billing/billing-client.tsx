@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
-import { CreditCard, Loader2 } from "lucide-react";
+import { CreditCard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton, SkeletonRows } from "@/components/ui/skeleton-loaders";
 import { formatSeconds } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -36,6 +37,10 @@ const packs = [
   { label: "₦100,000", amount: 100000, seconds: 30 * 60 * 60 },
 ];
 
+function InlinePulse() {
+  return <span className="inline-block h-2 w-2 rounded-full bg-navy/70 animate-pulse" />;
+}
+
 export function BillingClient() {
   const { getToken } = useAuth();
   const [me, setMe] = useState<Me | null>(null);
@@ -54,8 +59,14 @@ export function BillingClient() {
     setLoading(true);
     try {
       const [meRes, invRes] = await Promise.all([
-        fetch(`${API_URL}/api/user/me`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
-        fetch(`${API_URL}/api/billing/invoices`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
+        fetch(`${API_URL}/api/user/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
+        fetch(`${API_URL}/api/billing/invoices`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
       ]);
       if (!meRes.ok) throw new Error(await meRes.text());
       setMe((await meRes.json()) as Me);
@@ -102,8 +113,10 @@ export function BillingClient() {
 
       {loading && !me ? (
         <Card>
-          <CardContent className="flex items-center gap-2 p-6 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+          <CardContent className="space-y-3 p-6">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-72" />
+            <Skeleton className="h-4 w-56" />
           </CardContent>
         </Card>
       ) : null}
@@ -119,7 +132,9 @@ export function BillingClient() {
                 You&apos;re on beta access. All analyses are free with no limits. Payment is disabled.
               </p>
             </div>
-            <Badge variant="gold" className="ml-auto">BETA</Badge>
+            <Badge variant="gold" className="ml-auto">
+              BETA
+            </Badge>
           </CardContent>
         </Card>
       ) : null}
@@ -167,16 +182,19 @@ export function BillingClient() {
             </CardHeader>
             <CardContent className="space-y-3">
               {packs.map((p) => (
-                <div key={p.amount} className="flex items-center justify-between rounded-xl border border-border/70 bg-white/50 p-3">
+                <div
+                  key={p.amount}
+                  className="flex items-center justify-between rounded-xl border border-border/70 bg-white/50 p-3"
+                >
                   <div>
                     <div className="font-medium text-navy">{p.label}</div>
                     <div className="text-xs text-muted-foreground">Adds {formatSeconds(p.seconds)} analysis time</div>
                   </div>
                   <Button variant="gold" onClick={() => startCheckout(p.amount)} disabled={checkoutLoading !== null}>
                     {checkoutLoading === p.amount ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Redirecting
-                      </>
+                      <span className="inline-flex items-center gap-2">
+                        <InlinePulse /> Redirecting…
+                      </span>
                     ) : (
                       <>
                         <CreditCard className="h-4 w-4" /> Buy
@@ -198,38 +216,48 @@ export function BillingClient() {
           <CardTitle className="text-navy">Invoice history</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Reference</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.length === 0 ? (
+          {loading ? (
+            <SkeletonRows count={6} cols={5} />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">No invoices yet.</TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Credits</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reference</TableHead>
                 </TableRow>
-              ) : (
-                invoices.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell>{new Date(inv.created_at).toISOString().slice(0, 10)}</TableCell>
-                    <TableCell>₦{inv.amount_ngn.toLocaleString()}</TableCell>
-                    <TableCell>{formatSeconds(inv.credits_seconds)}</TableCell>
-                    <TableCell>
-                      <Badge variant={inv.status === "success" ? "low" : inv.status === "pending" ? "medium" : "critical"}>
-                        {inv.status}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-muted-foreground">
+                      No invoices yet.
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{inv.paystack_reference}</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell>{new Date(inv.created_at).toISOString().slice(0, 10)}</TableCell>
+                      <TableCell>₦{inv.amount_ngn.toLocaleString()}</TableCell>
+                      <TableCell>{formatSeconds(inv.credits_seconds)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            inv.status === "success" ? "low" : inv.status === "pending" ? "medium" : "critical"
+                          }
+                        >
+                          {inv.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{inv.paystack_reference}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -242,14 +270,18 @@ export function BillingClient() {
             <div className="font-semibold text-navy">Starter</div>
             <div className="text-sm text-muted-foreground">₦25,000/month · 10 hours · 3 seats</div>
             <div className="mt-3">
-              <Button variant="outline" disabled>Coming soon</Button>
+              <Button variant="outline" disabled>
+                Coming soon
+              </Button>
             </div>
           </div>
           <div className="rounded-xl border border-border/70 bg-white/50 p-4">
             <div className="font-semibold text-navy">Pro</div>
             <div className="text-sm text-muted-foreground">₦75,000/month · 50 hours · 10 seats</div>
             <div className="mt-3">
-              <Button variant="outline" disabled>Coming soon</Button>
+              <Button variant="outline" disabled>
+                Coming soon
+              </Button>
             </div>
           </div>
         </CardContent>
