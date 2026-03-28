@@ -47,11 +47,12 @@ def presigned_get_url(bucket: str, key: str, expires: int = 3600) -> str:
 
 
 def object_url(key: str) -> str:
-    # For S3-compatible endpoints, build a public URL. Many R2 setups are public via a custom domain.
-    # If the endpoint is not public, you can still use signed GET URLs on demand.
-    ep = settings.aws_endpoint_url.rstrip("/")
-    # If endpoint includes scheme+host, use path-style
-    return f"{ep}/{settings.aws_bucket_name}/{key}"
+    """Return a stable internal URL for storage.
+
+    We store `s3://bucket/key` in the DB to avoid coupling to any particular public endpoint
+    and to keep parsing unambiguous across S3/R2/custom domains.
+    """
+    return f"s3://{settings.aws_bucket_name}/{key}"
 
 
 def parse_s3_style_url(url: str) -> tuple[str, str]:
