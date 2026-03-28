@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airscan-backend"
+version = "0.1.0"
+description = "AirScan backend (FastAPI)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.6",
+  "uvicorn[standard]>=0.34.0",
+  "sqlalchemy>=2.0.36",
+  "psycopg2-binary>=2.9.10",
+  "alembic>=1.14.0",
+  "pydantic>=2.10.4",
+  "pydantic-settings>=2.7.0",
+  "python-multipart>=0.0.20",
+  "requests>=2.32.3",
+  "boto3>=1.35.90",
+  "redis>=5.2.1",
+  "rq>=2.1.0",
+  "openai>=1.58.1",
+  "google-generativeai>=0.8.3",
+  "reportlab>=4.2.5",
+  "python-jose[cryptography]>=3.3.0",
+]
+
+[tool.uvicorn]
+factory = false
+
+[tool.ruff]
+line-length = 110

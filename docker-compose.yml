@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airscan
+      POSTGRES_PASSWORD: airscan
+      POSTGRES_DB: airscan
+    ports:
+      - "5432:5432"
+    volumes:
+      - airscan_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - airscan_redis:/data
+
+volumes:
+  airscan_pg:
+  airscan_redis:
