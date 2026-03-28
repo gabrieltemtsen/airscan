@@ -10,7 +10,7 @@ from app.core.config import settings
 # Fall back to a dummy SQLite DB if DATABASE_URL not set (app will boot but DB ops will fail)
 _db_url = settings.database_url or "sqlite:///./airscan_dev.db"
 engine = create_engine(_db_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
 
 
 @contextmanager
