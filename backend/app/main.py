@@ -23,10 +23,10 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_url, "http://localhost:3000"],
+        allow_origins=["*"],  # tighten after deploy
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"] ,
+        allow_headers=["*"],
     )
 
     app.include_router(upload_router, prefix="/api")
@@ -38,7 +38,15 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"ok": True}
+        return {"ok": True, "version": "0.1.0"}
+
+    @app.on_event("startup")
+    def on_startup():
+        try:
+            Base.metadata.create_all(bind=engine)
+        except Exception as e:
+            import logging
+            logging.warning(f"DB init skipped (no DATABASE_URL?): {e}")
 
     return app
 
